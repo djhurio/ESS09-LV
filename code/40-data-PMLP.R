@@ -24,14 +24,6 @@ dat.ATVK
 
 
 
-# CSP kolektīvo mājokļu saraksts ####
-
-dat.kol <- read.xlsx("data/CSP/piepras_kolekt_sab_062018.xlsx")
-setDT(dat.kol)
-
-dat.kol
-
-
 # PMLP dati
 
 dat.preg <- read.xlsx("data/PMLP/rezult_20181102.xlsx")
@@ -96,3 +88,13 @@ tablist <- mget(tabnames)
 
 write.xlsx(tablist, file = "results/PMLP-tables.xlsx",
            colWidths = "auto", firstRow = T)
+
+
+# Save ####
+
+dat.preg
+dat.preg[!is.na(ARIS.kods) & n1 > 1]
+
+frame_pmlp <- dat.preg[, .(ARIS.kods, adrese, ATVK.kods)]
+
+save(frame_pmlp, file = "data/frame_pmlp.Rdata")
