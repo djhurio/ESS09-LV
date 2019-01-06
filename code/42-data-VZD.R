@@ -41,6 +41,7 @@ readlist
 dat <- fread(cmd = readlist[1], quote = "#")
 
 dat <- lapply(readlist, function(x) fread(cmd = x, quote = "#",
+                                          colClasses = "character",
                                           integer64 = "character"))
 
 length(dat)
