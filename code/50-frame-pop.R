@@ -14,20 +14,6 @@ gc()
 
 
 
-# ATVK ####
-
-file.exists(file.path(getwd(), "data/ATVK_act.csv"))
-
-readlist <- paste("iconv -f ISO-8859-13 -t UTF-8",
-                  file.path(getwd(), "data/ATVK_act.csv"))
-readlist
-
-dat.ATVK <- fread(cmd = readlist, colClasses = "character")
-dat.ATVK
-
-
-
-
 # CSP kolektīvo mājokļu saraksts ####
 
 dat.kol <- read.xlsx("data/CSP/piepras_kolekt_sab_062018.xlsx")
@@ -85,24 +71,71 @@ frame_majo_vzd[!(kol) & tips_cd == "108" & dziv_sk > 0, .N]
 frame_majo_vzd[!(kol) & tips_cd == "108" & dziv_sk > 0, .N, keyby = .(dekl)]
 frame_majo_vzd[!(kol) & tips_cd == "108" & dziv_sk > 0 & (dekl)]
 
-frame_majo_vzd[, tmp := any(!(kol) & tips_cd == "108" & dziv_sk > 0 & (dekl)),
+# Atzīmē daudzdzīvokļu ēkas (un visus tās dzīvokļus),
+# kuras nav kolektīvās un kurās ēkas līmenī ir deklarētās personas
+frame_majo_vzd[, problem := any(tips_cd == "108" & dziv_sk > 0 & !(kol) & (dekl)),
                by = .(adr_kods_eka)]
-frame_majo_vzd[, .N, keyby = .(tips_cd, tmp)]
+frame_majo_vzd[, .N, keyby = .(problem, tips_cd)]
+frame_majo_vzd[, .N, keyby = .(kol, problem, tips_cd)]
+
+frame_majo_vzd[(kol) & (problem)]
+
+frame_majo_vzd[adr_kods_eka %in% frame_majo_vzd[(kol) & (problem), adr_kods_eka]]
 
 frame_majo_vzd[, sum_dekl := sum(dekl), by = .(adr_kods_eka)]
-frame_majo_vzd[, sum_tmp  := sum(tmp),  by = .(adr_kods_eka)]
 
-tab <- frame_majo_vzd[(tmp) & sum_dekl < sum_tmp,
+# Problemātiskās ēkās, kurās personas ir deklarētas gan ēkas, gan dzīvokļu līmenī,
+# un ir dzīvokļi, kuros nav deklarētas personas
+tab <- frame_majo_vzd[(problem) & sum_dekl < dziv_sk + 1,
                       .(adr_kods_eka, tips_cd, ATVK_code, adrese, adrese_sort,
                         dekl, sum_dekl)][order(ATVK_code, adr_kods_eka,
                                                tips_cd, adrese_sort)]
 tab[, adrese_sort := NULL]
 
+# Ēkas, kur personas ir tikai ēkas līmenī
 tab1 <- tab[sum_dekl == 1]
+# Ēkas, kur personas ir gan ēkas, gan dzīvokļa līmenī
 tab2 <- tab[sum_dekl >  1]
 
+# Dzīvokļos nav deklarētu personu
 tab1[tips_cd == "109", .N, keyby = .(dekl)][, P := prop.table(N)][]
+# Dzīvokļu īpatsvars, kuros ir deklarētas personas
 tab2[tips_cd == "109", .N, keyby = .(dekl)][, P := prop.table(N)][]
 
 write.xlsx(list(tab1, tab2),
            file = "data/ekas-test.xlsx", firstRow = T, colWidths = "auto")
+
+# Lēmums: šajos gadījumos mājokļu ietvarā tiek ietverti visi šo ēku dzīvokļi
+
+tab3 <- frame_majo_vzd[, .N, keyby = .(kol, tips_cd, ddzeka = dziv_sk > 0,
+                                       problem, dekl)]
+tab3
+
+write.xlsx(x = tab3, file = "data/frame-tab.xlsx",
+           firstRow = T, colWidths = "auto")
+
+frame_majo <- frame_majo_vzd[!kol & ((tips_cd == "108" & dziv_sk == 0 & dekl) |
+                                       (tips_cd == "109" & (dekl | problem)))]
+
+frame_majo[, .N]
+
+frame_majo[, .N, keyby = .(kol, tips_cd, ddzeka = dziv_sk > 0, problem, dekl)]
+
+# 1. līmenis – 119 administratīvās teritorijas
+frame_majo[, .N, keyby = .(ATVK_L1)]
+frame_majo[, .N, keyby = .(ATVK_L1)][order(N)]
+
+frame_majo[is.na(ATVK_L2), .N, keyby = .(ATVK_L1)]
+frame_majo[is.na(ATVK_L2), .N, keyby = .(ATVK_L1)][order(N)]
+
+# 2. līmenis – 564 novadu teritoriālā iedalījuma vienības
+frame_majo[!is.na(ATVK_L2), .N, keyby = .(ATVK_L2)]
+frame_majo[!is.na(ATVK_L2), .N, keyby = .(ATVK_L2)][order(N)]
+
+frame_majo[, .N, keyby = .(ATVK_L1)][order(-N)][1:10]
+frame_majo[, .N, keyby = .(ATVK_code)][order(-N)][1:10]
+
+
+frame_majo[, c("kol", "problem", "sum_dekl") := NULL]
+
+save(frame_majo, file = "results/frame_majo.Rdata")
