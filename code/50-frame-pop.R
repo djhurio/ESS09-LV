@@ -42,6 +42,12 @@ pmlp_adr_kodi <- frame_pmlp[!is.na(ARIS.kods), unique(ARIS.kods)]
 pmlp_adreses  <- frame_pmlp[!is.na(adrese), tolower(unique(adrese))]
 
 
+# UR data ####
+
+load(file = "data/UR/dat_UR.Rdata")
+dat_UR
+
+
 # VZD dati
 load("data/frame_majo_vzd.Rdata")
 
@@ -137,5 +143,25 @@ frame_majo[, .N, keyby = .(ATVK_code)][order(-N)][1:10]
 
 
 frame_majo[, c("kol", "problem", "sum_dekl") := NULL]
+
+sapply(dat_UR, class)
+
+# Reģistrēto uzņēmumu skaits mājoklī
+frame_majo <- merge(x = frame_majo,
+                    y = dat_UR[, .(addressid, uzn_sk)],
+                    by.x = "adr_kods", by.y = "addressid",
+                    all.x = T, sort = F)
+
+frame_majo[is.na(uzn_sk), uzn_sk := 0L]
+
+frame_majo[, uzn_sk_dummy := as.integer(uzn_sk > 0)]
+
+frame_majo[, .N, keyby = .(uzn_sk_dummy)][, P := prop.table(N)][]
+
+# frame_majo[order(-uzn_sk), .(adr_kods, adrese, uzn_sk)][1:5]
+# frame_majo[adr_kods == "115070060", .(adr_kods, adrese, uzn_sk)]
+
+frame_majo[, lapply(.SD, sum), .SDcols = patterns("uzn_sk")]
+frame_majo[, lapply(.SD, mean), .SDcols = patterns("uzn_sk")]
 
 save(frame_majo, file = "results/frame_majo.Rdata")
