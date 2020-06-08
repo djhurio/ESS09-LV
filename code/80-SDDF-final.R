@@ -32,6 +32,44 @@ gc()
 
 data.sddf <- fread("data/ESS9_LV_SDDF.csv")
 
+setorder(data.sddf, stratex1, stratim1, stratim2)
+
+data.sddf
+
+data.sddf[, .N, keyby = .(stratim1)]
+data.sddf[, .N, keyby = .(stratex1, stratim1)]
+
+data.sddf[, .N, keyby = .(stratim2)]
+data.sddf[, .N, keyby = .(psu, stratim2)]
+
+# Recode stratim1 - should be values 1 - 505
+tab <- unique(data.sddf[, .(stratex1, psu, stratim1)])
+setorder(tab, stratex1, stratim1)
+tab
+
+tab[, stratim1 := .I]
+
+data.sddf[, stratim1 := NULL]
+
+data.sddf <- merge(data.sddf, tab, by = c("stratex1", "psu"), sort = F)
+
+data.sddf[, .N, keyby = .(stratim1)]
+data.sddf[, .N, keyby = .(stratex1, stratim1)]
+
+
+# Recode stratim2 - should be values 1 - 5
+setorder(data.sddf, stratex1, stratim1, stratim2)
+
+data.sddf[, stratim2 := rep(1:5, times = 505)]
+
+data.sddf[, .N, keyby = .(stratim2)]
+data.sddf[, .N, keyby = .(psu, stratim2)]
+
+
+
+
+# Contact form data
+
 data.cf <- read_spss("data/ESS9cf_LV_before-anon.sav")
 setDT(data.cf)
 
@@ -567,5 +605,18 @@ data.sddf[, .N, keyby = .(outcome)]
 data.sddf[, summary(prob3)]
 data.sddf[prob3 < 9, summary(prob3)]
 
+
+# cntry = LV
+data.sddf[, cntry := "LV"]
+
+
+setcolorder(data.sddf, c("idno", "cntry", "prob1", "prob2", "prob3",
+                         "stratex1", "stratim1", "stratim2",
+                         "strtval1", "strtval2", "psu", "outcome",
+                         "frame1", "frame2", "frame3", "frame4"))
+
 fwrite(data.sddf, file = "results/ESS9_LV_SDDF_final.csv")
-write.xlsx(data.sddf, file = "results/ESS9_LV_SDDF_final.xlsx")
+write.xlsx(data.sddf, file = "results/ESS9_LV_SDDF_final.xlsx",
+           headerStyle = createStyle(halign = "center"),
+           firstRow = T,
+           colWidths = "auto")
