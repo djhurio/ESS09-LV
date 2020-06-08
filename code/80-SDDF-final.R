@@ -602,6 +602,17 @@ data.sddf <- merge(data.sddf, data.cf[, .(idno, outcome, prob3)], by = "idno")
 
 data.sddf[, .N, keyby = .(outcome)]
 
+data.sddf[, .N, keyby = .(outcome)][, P := prop.table(N)][]
+#    outcome    N         P
+# 1:       1  918 0.3635644
+# 2:       2 1443 0.5714851
+# 3:       3  164 0.0649505
+
+data.sddf[outcome < 3, .N, keyby = .(outcome)][, P := prop.table(N)][]
+#    outcome    N         P
+# 1:       1  918 0.3888183
+# 2:       2 1443 0.6111817
+
 data.sddf[, summary(prob3)]
 data.sddf[prob3 < 9, summary(prob3)]
 
