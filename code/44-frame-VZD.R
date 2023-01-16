@@ -14,7 +14,7 @@ gc()
 
 # Load data ####
 
-load("data/VZD/data-VZD.Rdata")
+load("~/data/VZD/data-VZD.Rdata")
 
 
 # Dzīvokļi ####
@@ -49,25 +49,25 @@ frame_dziv <- aw_dziv[statuss == "EKS", .(kods, tips_cd, vkur_cd, vkur_tips,
 
 # Ēkas un zemes ####
 
-aw_nlieta
+aw_eka
 
-aw_nlieta[, .N, keyby = .(statuss)]
+aw_eka[, .N, keyby = .(statuss)]
 # 1:     DEL  26764
 # 2:     EKS 525262
 # 3:     ERR  27950
 
-aw_nlieta[, .N, keyby = .(apstipr)]
+aw_eka[, .N, keyby = .(apstipr)]
 # 1:          15006
 # 2:       Y 564970
 
-aw_nlieta[, .N, keyby = .(apst_pak)]
+aw_eka[, .N, keyby = .(apst_pak)]
 # 1:       NA  24399
 # 2:      251  13095
 # 3:      252 447956
 # 4:      253  46617
 # 5:      254  47909
 
-aw_nlieta[, .N, keyby = .(vkur_tips)]
+aw_eka[, .N, keyby = .(vkur_tips)]
 # 1:       104   1826
 # 2:       105 119836
 # 3:       106 131511
@@ -75,24 +75,28 @@ aw_nlieta[, .N, keyby = .(vkur_tips)]
 # 5:       113   4773
 
 # Pasta indekss
-aw_nlieta[, .N, keyby = .(atrib)]
+aw_eka[, .N, keyby = .(atrib)]
 
 # Pasta nodaļas kods
-aw_nlieta[, .N, keyby = .(pnod_cd)]
+aw_eka[, .N, keyby = .(pnod_cd)]
 
 # Pazīme, ka adresācijas objekts  ir apbūvei paredzēta zemes vienība.
 # Y – ir apbūvei paredzēta zemes vienība; N – ir ēka
-aw_nlieta[, .N, keyby = .(for_build)]
+aw_eka[, .N, keyby = .(for_build)]
 # 1:         N 435216
 # 2:         Y 144760
 
-aw_nlieta[, .N, keyby = .(statuss, for_build)]
+aw_eka[, .N, keyby = .(statuss, for_build)]
 
-aw_nlieta[kods == "101005035"]
+aw_eka[kods == "101005035"]
 
-frame_eka <- aw_nlieta[statuss == "EKS",
+aw_eka[, koord_x := as.numeric(koord_x)]
+aw_eka[, koord_y := as.numeric(koord_y)]
+
+frame_eka <- aw_eka[statuss == "EKS",
                        .(kods, tips_cd, vkur_cd, vkur_tips,
-                         nosaukums, sort_nos, atrib)]
+                         nosaukums, sort_nos, atrib,
+                         koord_x, koord_y)]
 
 
 # Teritorijas ####
@@ -265,17 +269,17 @@ frame_eka
 aw_geo
 
 
-aw_geo[, koord_x := as.numeric(koord_x)]
-aw_geo[, koord_y := as.numeric(koord_y)]
-
-frame_eka2 <- merge(x = frame_eka, y = aw_geo,
-                    by.x = "kods", by.y = "vieta_cd",
-                    all.x = T)
-frame_eka2[is.na(koord_x) | is.na(koord_y)]
+# aw_geo[, koord_x := as.numeric(koord_x)]
+# aw_geo[, koord_y := as.numeric(koord_y)]
+# 
+# frame_eka <- merge(x = frame_eka, y = aw_geo,
+#                     by.x = "kods", by.y = "vieta_cd",
+#                     all.x = T)
+frame_eka[is.na(koord_x) | is.na(koord_y)]
 
 
 # Ēkas nosaukums + pasta indekss
-tab <- frame_eka2[, .(kods, nos_eka, nos_eka_sort, pasts, vkur_cd_eka,
+tab <- frame_eka[, .(kods, nos_eka, nos_eka_sort, pasts, vkur_cd_eka,
                       koord_x, koord_y)]
 tab
 
@@ -290,7 +294,7 @@ frame_dziv2
 
 
 # Mājokļu ietvars (ēkas + dzīvokļi)
-frame_majo <- rbindlist(list(frame_eka2, frame_dziv2), fill = T)
+frame_majo <- rbindlist(list(frame_eka, frame_dziv2), fill = T)
 
 setkey(frame_majo, kods)
 
@@ -336,7 +340,7 @@ del_varl <- grep("^nos_", names(frame_majo), value = T)
 frame_majo[, c(del_varl) := NULL]
 
 tab <- frame_majo[sample(.N, 10), .(adr_kods, adrese)]
-fwrite(tab, file = "data/tab.csv")
+fwrite(tab, file = "~/data/tab.csv")
 
 frame_majo[ is.na(ATVK_L2), ATVK_code := ATVK_L1]
 frame_majo[!is.na(ATVK_L2), ATVK_code := ATVK_L2]
@@ -346,7 +350,7 @@ frame_majo_vzd <- frame_majo[, .(adr_kods, adr_kods_eka, adr_kods_dziv,
                                  koord_x, koord_y, tips_cd,
                                  adrese, adrese_sort)]
 
-setkey(frame_majo_vzd, adr_kods)
+setkey(frame_majo_vzd, adr_kods_eka, adr_kods)
 
 frame_majo_vzd[, dziv_sk := .N - 1, by = .(adr_kods_eka)]
 frame_majo_vzd[, .N, keyby = .(dziv_sk)]
